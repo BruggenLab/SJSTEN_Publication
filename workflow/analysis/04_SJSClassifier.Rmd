@@ -1,0 +1,141 @@
+---
+title: "04_SJSClassifier"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Import libraries
+```{r,message=FALSE}
+library(OlinkAnalyze)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(openxlsx)
+library(xlsx)
+library(reshape2)
+library(SingleCellExperiment)
+library(caret)
+library(doParallel)
+library(pROC)
+```
+
+
+# read data
+```{r}
+Inflammation <- read_NPX(filename = "/Users/milad/Documents/SJSTEN/Inflammation_Brüggen_Drug Allergy_NPX.xlsx")
+
+Immuneresponse <- read_NPX(filename = "/Users/milad/Documents/SJSTEN/Immune Response_Brüggen_Drug Allergy_NPX.xlsx")
+```
+
+
+```{r}
+SJSTEN <- bind_rows(Immuneresponse, Inflammation) %>% group_by(Assay, SampleID) %>% filter(row_number()==1)
+table(SJSTEN$SampleID)
+```
+
+
+# assign group to samples
+```{r}
+#SJSTEN$condition<-"Patient"
+#SJSTEN$condition[SJSTEN$SampleID %in% c("de1908 0817","de1908 0840","de1908 0984","de1908 0985","de1908 0986","de1908 0988","de1908 0991","de1908 0992","de1908 0990")]<-"Control"
+table(SJSTEN$condition)
+```
+
+
+
+```{r}
+library(reshape2)
+wideSJSTEN<- dcast(data = SJSTEN[,c(1,5,12)],formula = Assay~SampleID,fun.aggregate = sum,value.var = "NPX")
+
+counts <- data.matrix(wideSJSTEN[,c(2:53)])
+rownames(counts) <- c(wideSJSTEN$Assay)
+colnames(counts) <- c(colnames(wideSJSTEN[,c(2:53)]))
+
+sce <- SingleCellExperiment(assays = list(counts = counts),
+                            rowData=data.frame(protein = rownames(counts)),
+                            colData=data.frame(Sample = colnames(counts),Condition= NA))
+
+
+sce@colData$Condition<-"Patient"
+sce@colData$Condition[sce$Sample %in% c("de1908 0817","de1908 0840","de1908 0984","de1908 0985","de1908 0986","de1908 0988","de1908 0991","de1908 0992","de1908 0990")]<-"Control"
+
+sce
+```
+
+
+# split-data
+```{r}
+set.seed(1234)
+trainIndex <- createDataPartition(factor(sce$Condition), p = 0.90)
+train_sce <- sce[,trainIndex$Resample1]
+test_sce <- sce[,-trainIndex$Resample1]
+```
+
+
+# train classifier
+```{r,message=FALSE}
+set.seed(222)
+seeds <- vector(mode = "list", length = 11)
+for (i in 1:10) {
+  seeds[[i]] <- sample.int(5000, 30)
+}
+
+seeds[[11]] <- sample.int(5000, 1)
+fitControl <- trainControl(method = "repeatedcv",
+                           repeats = 1,
+                           number = 10,
+                           seeds = seeds)
+
+cl <- makePSOCKcluster(5, setup_strategy = "sequential")
+
+registerDoParallel(cl)
+
+set.seed(1234)
+
+start = Sys.time()
+
+rffit <- train(x = t(assay(sce, "counts")), 
+               y = factor(sce$Condition),
+               method = "rf", ntree = 3000,
+               tuneLength = 30,
+               trControl = fitControl)
+
+
+stopCluster(cl)
+end = Sys.time()
+print(end-start)
+rffit
+```
+
+
+
+#accuracy
+```{r}
+ggplot(rffit) + 
+  geom_errorbar(data = rffit$results,
+                aes(ymin = Accuracy - AccuracySD,
+                    ymax = Accuracy + AccuracySD),
+                width = 0.4)
+```
+
+
+#confusion matrix
+```{r}
+confusionMatrix(rffit)
+rffit$finalModel
+```
+
+
+```{r, fig.height = 7}
+cur_varImp <- varImp(rffit)
+#library(randomForest)
+#randomForest::importance(rffit$finalModel)
+#randomForest::plo(rffit$finalModel)
+
+ggplot(cur_varImp, top = 20)+theme_classic()+theme(axis.title = element_text(color="black",size = 18),axis.text = element_text(color="black",size = 25))
+```
+
+

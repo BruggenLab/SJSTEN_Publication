@@ -1,0 +1,1302 @@
+---
+title: "4_excavatesjs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# library
+```{r,echo=FALSE}
+library(OlinkAnalyze)
+library(OlinkR)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(SingleCellExperiment)
+library(ComplexHeatmap)
+library(readxl)
+library(UniprotR)
+library(ggpubr)
+library(tidyverse)
+library(pheatmap)
+library(viridis)
+library(gplots)
+library(circlize)
+library(ggforce)
+library(ggVennDiagram)
+library(xlsx)
+```
+
+
+# load data
+```{r}
+grouping_se <- read_xlsx(path = "/Users/milad/Documents/SJSTEN/meta.xlsx")
+
+grouping_se$ConditionFactor <- paste(grouping_se$Condition_Factor,gsub(" ", "", paste("T",grouping_se$Adj)))
+grouping_se$ConditionFactor[grouping_se$ConditionFactor %in% c("HC T3")] <- "HC"
+grouping_se$ConditionFactor<-factor(grouping_se$ConditionFactor,levels=c("BSCO T0","BSCO T1","BSCO T2","CSA T0","CSA T1","CSA T2","IVIG T0","IVIG T1","IVIG T2","HC"))
+
+
+SJSTEN <- readRDS(file =  "/Users/milad/Documents/SJSTEN/SJSTEN_V1.rds")
+
+
+
+SJSTEN$time[SJSTEN$SampleID %in% c("de1908 0817","de1908 0840","de1908 0984","de1908 0985","de1908 0986","de1908 0988","de1908 0991","de1908 0992","de1908 0990")]<-3
+SJSTEN$TimeFactor<-as.factor(SJSTEN$time)
+
+SJSTEN$condition[SJSTEN$condition %in% c("Control")] <- "HC"
+SJSTEN$condition[SJSTEN$condition %in% c("BSC")] <- "BSCO"
+
+
+SJSTEN$conditionGeneral<-"Patient"
+SJSTEN$conditionGeneral[SJSTEN$SampleID %in% c("de1908 0817","de1908 0840","de1908 0984","de1908 0985","de1908 0986","de1908 0988","de1908 0991","de1908 0992","de1908 0990")]<-"HC"
+
+SJSTEN$conditionGeneral<-factor(SJSTEN$conditionGeneral,levels=c("Patient","HC"))
+
+
+SJSTEN$ConditionFactor <- paste(SJSTEN$condition,gsub(" ", "", paste("T",SJSTEN$TimeFactor)))
+SJSTEN$ConditionFactor[SJSTEN$ConditionFactor %in% c("HC T3")] <- "HC"
+SJSTEN$ConditionFactor<-factor(SJSTEN$ConditionFactor,levels=c("BSCO T0","BSCO T1","BSCO T2","CSA T0","CSA T1","CSA T2","IVIG T0","IVIG T1","IVIG T2","HC"))
+```
+
+#------------------------------------ PCA PCA PCA PCA PCA PCA PCA PCA ------------------------------------
+
+# PCA BSCO at different T
+```{r}
+unique(SJSTEN$ConditionFactor)
+pca_comp <- SJSTEN %>% filter(condition %in% c("BSCO","HC")) %>%
+  mutate(ConditionFactor = factor(ConditionFactor, levels = c("BSCO T0","BSCO T1","BSCO T2","HC"))) %>%
+  olink_pca_plot(color_g = "ConditionFactor")
+
+pca_comp_fig <- pca_comp[[1]]
+
+new_graph_data_comp <- pca_comp_fig$data %>% rownames_to_column("SampleID") %>% 
+left_join(grouping_se, by = "SampleID") %>% column_to_rownames("SampleID") %>%
+  mutate(Time = sapply(strsplit(Time,""), `[`, 2))%>%
+  mutate(Time = factor(Time))
+
+pca_comp_fig$data <- new_graph_data_comp
+
+pca_comp_figure <- pca_comp_fig +
+  geom_mark_ellipse(aes(color = ConditionFactor, fill = ConditionFactor), 
+                    expand = unit(4, "mm"),
+                    show.legend = FALSE,
+                    alpha = 0.05) +
+  scale_color_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  scale_fill_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  expand_limits(x=c(-0.5,0.4), y=c(-0.7, 0.45))+ theme(axis.title = element_text(color="black",size = 18),
+                                                       plot.title = element_text(color="black", size=20, face="bold",hjust = 0.5))+
+  labs(title="BSCO, D0, D5-7, D21")
+
+print(pca_comp_figure)
+```
+
+
+# PCA CSA at different T both panel 
+```{r}
+pca_comp <- SJSTEN %>% filter(condition %in% c("CSA","HC")) %>%
+  mutate(ConditionFactor = factor(ConditionFactor, levels = c("CSA T0","CSA T1","CSA T2","HC"))) %>%
+  olink_pca_plot(color_g = "ConditionFactor")
+
+pca_comp_fig <- pca_comp[[1]]
+
+new_graph_data_comp <- pca_comp_fig$data %>% rownames_to_column("SampleID") %>% 
+left_join(grouping_se, by = "SampleID") %>% column_to_rownames("SampleID") %>%
+  mutate(Time = sapply(strsplit(Time,""), `[`, 2))%>%
+  mutate(Time = factor(Time))
+
+pca_comp_fig$data <- new_graph_data_comp
+
+pca_comp_figure <- pca_comp_fig +
+  geom_mark_ellipse(aes(color = ConditionFactor, fill = ConditionFactor), 
+                    expand = unit(4, "mm"),
+                    show.legend = FALSE,
+                    alpha = 0.05) +
+  scale_color_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  scale_fill_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  expand_limits(x=c(-0.5,0.4), y=c(-0.7, 0.45))+ theme(axis.title = element_text(color="black",size = 18),
+                                                       plot.title = element_text(color="black", size=20, face="bold",hjust = 0.5))+
+  labs(title="CSA, D0, D5-7, D21")
+
+print(pca_comp_figure)
+```
+
+
+# PCA IVIG at different T both panel 
+```{r}
+pca_comp <- SJSTEN %>% filter(condition %in% c("IVIG","HC")) %>%
+  mutate(ConditionFactor = factor(ConditionFactor, levels = c("IVIG T0","IVIG T1","IVIG T2","HC"))) %>%
+  olink_pca_plot(color_g = "ConditionFactor")
+
+pca_comp_fig <- pca_comp[[1]]
+
+new_graph_data_comp <- pca_comp_fig$data %>% rownames_to_column("SampleID") %>% 
+left_join(grouping_se, by = "SampleID") %>% column_to_rownames("SampleID") %>%
+  mutate(Time = sapply(strsplit(Time,""), `[`, 2))%>%
+  mutate(Time = factor(Time))
+
+pca_comp_fig$data <- new_graph_data_comp
+
+pca_comp_figure <- pca_comp_fig +
+  geom_mark_ellipse(aes(color = ConditionFactor, fill = ConditionFactor), 
+                    expand = unit(4, "mm"),
+                    show.legend = FALSE,
+                    alpha = 0.05) +
+  scale_color_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  scale_fill_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  expand_limits(x=c(-0.5,0.5), y=c(-0.7, 0.45))+ theme(axis.title = element_text(color="black",size = 18),
+                                                       plot.title = element_text(color="black", size=20, face="bold",hjust = 0.5))+
+  labs(title="IVIG, D0, D5-7, D21")
+
+print(pca_comp_figure)
+```
+
+
+# PCA all contidion at T0 both panel
+```{r}
+pca_comp <- SJSTEN %>% filter(ConditionFactor %in% c("BSCO T0","CSA T0","IVIG T0","HC")) %>%
+  mutate(ConditionFactor = factor(ConditionFactor, levels = c("BSCO T0","CSA T0","IVIG T0","HC"))) %>%
+  olink_pca_plot(color_g = "ConditionFactor")
+
+pca_comp_fig <- pca_comp[[1]]
+
+new_graph_data_comp <- pca_comp_fig$data %>% rownames_to_column("SampleID") %>% 
+left_join(grouping_se, by = "SampleID") %>% column_to_rownames("SampleID") %>%
+  mutate(Time = sapply(strsplit(Time,""), `[`, 2))%>%
+  mutate(Time = factor(Time))
+
+pca_comp_fig$data <- new_graph_data_comp
+
+pca_comp_figure <- pca_comp_fig +
+  geom_mark_ellipse(aes(color = ConditionFactor, fill = ConditionFactor), 
+                    expand = unit(4, "mm"),
+                    show.legend = FALSE,
+                    alpha = 0.05) +
+  scale_color_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  scale_fill_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  expand_limits(x=c(-0.45,0.5), y=c(-0.6, 0.5))
+print(pca_comp_figure)
+```
+
+
+# PCA all contidion at T1 both panel
+```{r}
+pca_comp <- SJSTEN %>% filter(ConditionFactor %in% c("BSCO T1","CSA T1","IVIG T1","HC")) %>%
+  mutate(ConditionFactor = factor(ConditionFactor, levels = c("BSCO T1","CSA T1","IVIG T1","HC"))) %>%
+  olink_pca_plot(color_g = "ConditionFactor")
+
+pca_comp_fig <- pca_comp[[1]]
+
+new_graph_data_comp <- pca_comp_fig$data %>% rownames_to_column("SampleID") %>% 
+left_join(grouping_se, by = "SampleID") %>% column_to_rownames("SampleID") %>%
+  mutate(Time = sapply(strsplit(Time,""), `[`, 2))%>%
+  mutate(Time = factor(Time))
+
+pca_comp_fig$data <- new_graph_data_comp
+
+pca_comp_figure <- pca_comp_fig +
+  geom_mark_ellipse(aes(color = ConditionFactor, fill = ConditionFactor), 
+                    expand = unit(4, "mm"),
+                    show.legend = FALSE,
+                    alpha = 0.05) +
+  scale_color_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  scale_fill_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  expand_limits(x=c(-0.45,0.5), y=c(-0.6, 0.5))
+print(pca_comp_figure)
+```
+
+
+# PCA all contidion at T2
+```{r}
+pca_comp <- SJSTEN %>% filter(ConditionFactor %in% c("BSCO T2","CSA T2","IVIG T2","HC")) %>%
+  mutate(ConditionFactor = factor(ConditionFactor, levels = c("BSCO T2","CSA T2","IVIG T2","HC"))) %>%
+  olink_pca_plot(color_g = "ConditionFactor")
+
+pca_comp_fig <- pca_comp[[1]]
+
+new_graph_data_comp <- pca_comp_fig$data %>% rownames_to_column("SampleID") %>% 
+left_join(grouping_se, by = "SampleID") %>% column_to_rownames("SampleID") %>%
+  mutate(Time = sapply(strsplit(Time,""), `[`, 2))%>%
+  mutate(Time = factor(Time))
+
+pca_comp_fig$data <- new_graph_data_comp
+
+pca_comp_figure <- pca_comp_fig +
+  geom_mark_ellipse(aes(color = ConditionFactor, fill = ConditionFactor), 
+                    expand = unit(4, "mm"),
+                    show.legend = FALSE,
+                    alpha = 0.05) +
+  scale_color_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  scale_fill_manual(values=c("#fe2504", "#01c7e1", "#00559e","#ffc700")) +
+  expand_limits(x=c(-0.5,0.5), y=c(-0.6, 0.5))
+print(pca_comp_figure)
+```
+
+
+```{r}
+#table(SJSTEN$condition2,SJSTEN$TimeFactor,SJSTEN$condition)
+```
+
+### Statistical tests and models
+### anova
+
+```{r}
+res_anova <- olink_anova(df = SJSTEN[SJSTEN$time %in% c(0),], variable = "condition")
+res_anova %>% filter(Threshold=="Significant")
+```
+
+
+# BOX plot
+```{r,fig.height=4,fig.width=5}
+anova_posthoc_results<-SJSTEN[SJSTEN$time %in% c(0),] %>% 
+  olink_anova_posthoc(olinkid_list = c("OID00957"),
+                      variable = 'condition',
+                      effect = 'condition')
+
+
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(0),],variable = "condition",
+                olinkid_list = c("OID00957"),
+                number_of_proteins_per_plot  = 1,
+                posthoc_results = anova_posthoc_results)
+
+plot[[1]]+ ylab("NPX  value")+ scale_x_discrete("BSCO       CSA         IVIG")+theme(axis.title = element_text(color="black",size = 18),axis.text = element_text(color="black",size = 12))
+
+```
+
+
+```{r}
+res_anova <- olink_anova(df = SJSTEN[SJSTEN$time %in% c(1),], variable = "condition")
+res_anova %>% filter(Threshold=="Significant")
+```
+
+
+# BOX plot
+```{r,fig.height=4,fig.width=5}
+anova_posthoc_results<-SJSTEN[SJSTEN$time %in% c(1),] %>% 
+  olink_anova_posthoc(olinkid_list = c("OID01021"),
+                      variable = 'condition',
+                      effect = 'condition')
+
+
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(1),],variable = "condition",
+                olinkid_list = "OID01021",
+                number_of_proteins_per_plot  = 1,
+                posthoc_results = anova_posthoc_results)
+
+plot[[1]]+ ylab("NPX  value")+ scale_x_discrete("BSCO        CSA        IVIG")+theme(axis.title = element_text(color="black",size = 18),axis.text = element_text(color="black",size = 12))
+```
+
+#------------------------------------ volcano volcano volcano volcano ------------------------------------
+
+# Control vs  Patient at T0
+```{r}
+ttest_results <- olink_ttest(df = SJSTEN[SJSTEN$time %in% c(0,3),],variable = "conditionGeneral")
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))+ theme(axis.title = element_text(color="black",size = 18),
+                                                                                                                                     axis.text = element_text(color="black",size = 12))
+
+```
+
+# Sig assay list
+```{r}
+sort(ttest_results %>%
+  filter(Threshold=="Significant") %>%
+  filter(estimate<0) %>%
+  pull(Assay))
+
+sort(ttest_results %>%
+  filter(Threshold=="Significant") %>%
+  filter(estimate>0) %>%
+  pull(Assay))
+
+```
+
+# BOX plot
+```{r,fig.height=8,fig.width=10}
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(0,3),],variable = "ConditionFactor",
+                olinkid_list = ttest_sign,
+                number_of_proteins_per_plot  = 10)
+plot[[1]]
+```
+
+
+# BOX plot TNF D0
+```{r,fig.height=4,fig.width=5}
+
+ttest_results <- olink_ttest(df = SJSTEN[SJSTEN$time %in% c(0,3) & !SJSTEN$SampleID %in%("de1908 0984"),],variable = "conditionGeneral")
+
+table(SJSTEN$conditionGeneral[SJSTEN$time %in% c(2,3) & !SJSTEN$SampleID %in%("de1908 0984")])/180
+
+ttest_results %>% filter(Assay %in% c("TNF"))
+
+anova_posthoc_results<-SJSTEN[SJSTEN$time %in% c(0,3) & !SJSTEN$SampleID %in%("de1908 0984"),] %>% 
+  olink_anova_posthoc(olinkid_list = c("OID05548"),
+                      variable = 'conditionGeneral',
+                      effect = 'conditionGeneral')
+
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(0,3) & !SJSTEN$SampleID %in%("de1908 0984"),],variable = "conditionGeneral",
+                olinkid_list = "OID05548",
+                number_of_proteins_per_plot  = 1,
+                posthoc_results = anova_posthoc_results)
+
+plot[[1]]+ ylab("NPX  value")+ scale_x_discrete("Patient        HC")+theme(axis.title = element_text(color="black",size = 18),axis.text = element_text(color="black",size = 12))
+```
+
+
+
+# Control vs  Patient at T1
+```{r}
+ttest_results <- olink_ttest(df = SJSTEN[SJSTEN$time %in% c(1,3),],variable = "conditionGeneral")
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+
+```
+# Sig assay list
+```{r}
+ttest_results %>%
+  filter(Threshold=="Significant") %>%
+  pull(Assay)
+```
+# BOX plot
+```{r,fig.height=8,fig.width=10}
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(1,3),],variable = "ConditionFactor",
+                olinkid_list = ttest_sign,
+                number_of_proteins_per_plot  = 10)
+plot[[1]]
+```
+
+
+# BOX plot TNF D1
+```{r,fig.height=4,fig.width=5}
+
+ttest_results <- olink_ttest(df = SJSTEN[SJSTEN$time %in% c(1,3) & !SJSTEN$SampleID %in%("de1908 0984"),],variable = "conditionGeneral")
+
+ttest_results %>% filter(Assay %in% c("TNF"))
+
+anova_posthoc_results<-SJSTEN[SJSTEN$time %in% c(1,3) & !SJSTEN$SampleID %in%("de1908 0984"),] %>% 
+  olink_anova_posthoc(olinkid_list = c("OID05548"),
+                      variable = 'conditionGeneral',
+                      effect = 'conditionGeneral')
+
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(1,3) & !SJSTEN$SampleID %in%("de1908 0984"),],variable = "conditionGeneral",
+                olinkid_list = "OID05548",
+                number_of_proteins_per_plot  = 1,
+                posthoc_results = anova_posthoc_results)
+
+plot[[1]]+ ylab("NPX  value")+ scale_x_discrete("Patient        HC")+theme(axis.title = element_text(color="black",size = 18),axis.text = element_text(color="black",size = 12))
+```
+
+
+# Control vs  Patient at T2
+```{r}
+ttest_results <- olink_ttest(df = SJSTEN[SJSTEN$time %in% c(2,3),],variable = "conditionGeneral")
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+
+```
+# Sig assay list
+```{r}
+ttest_results %>%
+  filter(Threshold=="Significant") %>%
+  pull(Assay)
+```
+# BOX plot
+```{r,fig.height=8,fig.width=10}
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(2,3),],variable = "ConditionFactor",
+                olinkid_list = ttest_sign,
+                number_of_proteins_per_plot  = 10)
+plot[[1]]
+```
+
+
+
+
+# BOX plot TNF D2
+```{r,fig.height=4,fig.width=5}
+
+ttest_results <- olink_ttest(df = SJSTEN[SJSTEN$time %in% c(2,3) & !SJSTEN$SampleID %in%("de1908 0984"),],variable = "conditionGeneral")
+
+ttest_results %>% filter(Assay %in% c("TNF"))
+
+anova_posthoc_results<-SJSTEN[SJSTEN$time %in% c(2,3) & !SJSTEN$SampleID %in%("de1908 0984"),] %>% 
+  olink_anova_posthoc(olinkid_list = c("OID05548"),
+                      variable = 'conditionGeneral',
+                      effect = 'conditionGeneral')
+
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(2,3) & !SJSTEN$SampleID %in%("de1908 0984"),],variable = "conditionGeneral",
+                olinkid_list = "OID05548",
+                number_of_proteins_per_plot  = 1,
+                posthoc_results = anova_posthoc_results)
+
+plot[[1]]+ ylab("NPX  value")+ scale_x_discrete("Patient        HC")+theme(axis.title = element_text(color="black",size = 18),axis.text = element_text(color="black",size = 12))
+```
+
+
+
+#------------------------------------ Patient Patient Patient Patient ------------------------------------
+
+# Patient T0 Vs T1
+```{r}
+ttest_results <- SJSTEN %>% filter(conditionGeneral %in% c("Patient")) %>%
+  filter(time %in% c(0,1)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("1","0"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))+ theme(axis.title = element_text(color="black",size = 18),
+                                                                                                                                     axis.text = element_text(color="black",size = 12))
+```
+
+# Sig assay list
+```{r}
+ttest_results %>%
+  filter(Threshold=="Significant") %>%
+  pull(Assay)
+```
+
+# BOX plot
+```{r,fig.height=8,fig.width=10}
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(0,1,3),],variable = "ConditionFactor",
+                olinkid_list = ttest_sign,
+                number_of_proteins_per_plot  = 10)
+plot[[1]]
+```
+
+
+# Patient T0 Vs T2
+```{r}
+ttest_results <- SJSTEN %>% filter(conditionGeneral %in% c("Patient")) %>%
+  filter(time %in% c(0,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("2","0"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))+ theme(axis.title = element_text(color="black",size = 18),
+                                                                                                                                     axis.text = element_text(color="black",size = 12))
+```
+
+# Sig assay list
+```{r}
+ttest_results %>%
+  filter(Threshold=="Significant") %>%
+  pull(Assay)
+```
+
+# BOX plot
+```{r,fig.height=8,fig.width=10}
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(0,2,3),],variable = "ConditionFactor",
+                olinkid_list = ttest_sign,
+                number_of_proteins_per_plot  = 10)
+plot[[1]]
+```
+
+
+
+# Patient T1 Vs T2
+```{r}
+ttest_results <- SJSTEN %>% filter(conditionGeneral %in% c("Patient")) %>%
+  filter(time %in% c(1,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("2","1"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))+ theme(axis.title = element_text(color="black",size = 18),
+                                                                                                                                     axis.text = element_text(color="black",size = 12))
+```
+
+# BOX plot
+```{r,fig.height=8,fig.width=10}
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(1,2,3),],variable = "ConditionFactor",
+                olinkid_list = ttest_sign,
+                number_of_proteins_per_plot  = 10)
+plot[[1]]
+```
+
+
+
+# BSCO T1 Vs T2
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("BSCO")) %>%
+  filter(time %in% c(1,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("1","2"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+
+# CSA T1 Vs T2
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("CSA")) %>%
+  filter(time %in% c(1,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("1","2"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+
+# IVIG T1 Vs T2
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("IVIG")) %>%
+  filter(time %in% c(1,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("1","2"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+
+# "IVIG T0 T2"
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("IVIG")) %>%
+  filter(time %in% c(0,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("0","2"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+
+# Sig assay list
+```{r}
+ttest_results %>%
+  filter(Threshold=="Significant") %>%
+  pull(Assay)
+```
+
+
+# BOX plot
+```{r,fig.height=8,fig.width=10}
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(0,2,3) & SJSTEN$condition %in% c("IVIG","HC") ,],variable = "ConditionFactor",
+                olinkid_list = ttest_sign,
+                number_of_proteins_per_plot  = 10)
+plot[[1]]
+```
+
+#------------------------------------ Heatmap Heatmap Heatmap Heatmap ------------------------------------
+
+
+# prepare se obj
+```{r,fig.height=8,fig.width=10,echo=FALSE}
+data_infl <- read_NPX(filename = "/Users/milad/Documents/SJSTEN/Inflammation_Brüggen_Drug Allergy_NPX.xlsx")
+data_immun <- read_NPX(filename = "/Users/milad/Documents/SJSTEN/Immune Response_Brüggen_Drug Allergy_NPX.xlsx")
+
+data_se <- bind_rows(data_infl, data_immun) %>%
+  group_by(Assay, SampleID) %>% filter(row_number()==1) %>%
+  left_join(grouping_se, by = "SampleID")
+se <- OlinkR::as_se(data_se)
+
+
+se$Adj_factor<-"T3"
+se$Adj_factor[se@colData@rownames %in% c("B3390700j5","B3390724J5","B3390725J5","B320731J5","B3390714j5","B3390716J5","B3320730J5","B3340738J5","HG10.50","HG13.451","HG15.153","HG15.737","HG17.1311","HG16.959","HG11.236","HG11.256")]<-"T0"
+se$Adj_factor[se@colData@rownames %in% c("LYELL 01","LYELL 06","LYELL 07","LYELL 09","LYELL 10","LYELL 08","LYELL 04","LYELL 03","HG10.54","HG13.469","HG15.322","HG15.865","HG17.1589","HG16.1032","HG11.249","HG11.246")]<-"T1"
+se$Adj_factor[se@colData@rownames %in% c("B07J21","B09J21","B06J21","B01J21","B04J21","B03J21","B08J21","0B10M2","de1908 0983","HG19.3989","HG15.529")]<-"T2"
+
+se$Condition_Factor[se$Condition_Factor %in% c("BSC")] <- "BSCO"
+
+```
+
+
+```{r}
+table(se$Adj_factor,se$Condition_Factor)
+```
+
+
+```{r,fig.height=10,fig.width=12}
+tb <- olink_limma(se,factorCol = "Condition_Factor",contrasts = "BSCO - CSA - IVIG - HC",blocking = NULL)
+
+plot <- tb %>% 
+    select(intersect(colnames(tb), colnames(se))) %>%
+    as.data.frame()
+rownames(plot) <-scuttle::uniquifyFeatureNames(tb$OlinkID, tb$Assay)
+
+res_anova <- olink_anova(df = SJSTEN[SJSTEN$time %in% c(0,3),], variable = "condition")
+res_anova %>% filter(Threshold=="Significant") %>% pull(Assay)
+
+sign <- res_anova %>% filter(Threshold=="Significant") %>% head(n=40) %>% pull(Assay)
+
+plot_sig <- plot %>% filter(row.names(plot) %in% sign) %>% as.matrix()
+
+plot_scale <- t(scale(t(plot_sig)))
+
+anno_group <- data.frame(colData(se)[colnames(plot), ],check.names = FALSE)$Condition_Factor
+
+column_ha <- HeatmapAnnotation(Condition = anno_group, 
+                               col = list(Condition = c("HC" = "#ffc700","BSCO" = "#01c7e1","IVIG" = "#077183","CSA"="#27ae54")),
+                               border = TRUE,annotation_name_gp= gpar(fontsize = 3),
+                               annotation_legend_param = list(direction = "horizontal",title = "Condition",
+                                                              title_gp = gpar(fontsize= 15),
+                                                              labels_gp = gpar(fontsize = 15)))
+
+
+heat_group <- Heatmap(plot_scale,
+                      name = " ",
+                      top_annotation = column_ha,
+                      row_names_gp = grid::gpar(fontsize = 15),
+                      column_names_gp = grid::gpar(fontsize = 10),
+                      column_title_gp = gpar(fontsize = 15),
+                      row_title = NULL,
+                      column_split = factor(rep(c("BSCO", "CSA", "IVIG","HC"),c(12,12,19,9)),levels = c("BSCO","CSA","IVIG","HC")),
+                      cluster_column_slices = FALSE,
+                      show_column_names = FALSE)
+heat_group
+```
+
+
+```{r}
+res_anova %>% filter(Threshold=="Significant")%>% pull(Assay)
+```
+
+
+# All condition at T0 and control
+```{r,fig.height=20,fig.width=8}
+seT0 <- se[,se$Adj_factor %in% c("T0","T3")]
+
+SJSTENT0 <- SJSTEN[SJSTEN$time %in% c(0,3),]
+
+tb <- olink_limma(seT0,factorCol = "Condition_Factor",contrasts = "BSCO - CSA - IVIG - HC",blocking = NULL)
+
+plot <- tb %>% 
+    select(intersect(colnames(tb), colnames(seT0))) %>%
+    as.data.frame()
+rownames(plot) <-scuttle::uniquifyFeatureNames(tb$OlinkID, tb$Assay)
+
+
+res_anova <- olink_anova(df = SJSTENT0[SJSTENT0$time %in% c(0,3),], variable = "condition")
+res_anova %>% filter(Threshold=="Significant") %>% pull(Assay)
+
+sign <- res_anova %>% head(n=89) %>% pull(Assay)
+
+plot_sig <- plot %>% filter(row.names(plot) %in% sign) %>% as.matrix()
+
+plot_scale <- t(scale(t(plot_sig)))
+
+anno_group <- data.frame(colData(seT0)[colnames(plot), ],check.names = FALSE)$Condition_Factor
+
+
+column_ha <- HeatmapAnnotation(Condition = anno_group, 
+                               col = list(Condition = c("HC" = "#ffc700","BSCO" = "#01c7e1","IVIG" = "#077183","CSA"="#27ae54")),
+                               border = TRUE,annotation_name_gp= gpar(fontsize = 3),
+                               annotation_legend_param = list(direction = "horizontal",title = "Condition",
+                                                              title_gp = gpar(fontsize = 15),
+                                                              labels_gp = gpar(fontsize = 15)))
+
+
+heat_group <- Heatmap(plot_scale,
+                      name = " ",
+                      top_annotation = column_ha,
+                      row_names_gp = grid::gpar(fontsize = 15),
+                      column_names_gp = grid::gpar(fontsize = 10),
+                      column_title_gp = gpar(fontsize = 15),
+                      row_title = NULL,
+                      column_split = factor(rep(c("BSCO", "CSA", "IVIG","HC"),c(4,4,8,9)),levels = c("BSCO","CSA","IVIG","HC")),
+                      cluster_column_slices = FALSE,
+                      show_column_names = FALSE)
+heat_group
+```
+
+
+
+# All condition at T1 and control
+```{r,fig.height=7,fig.width=8}
+seT0 <- se[,se$Adj_factor %in% c("T1","T3")]
+
+table(seT0$Adj_factor,seT0$Condition_Factor)
+SJSTENT0 <- SJSTEN[SJSTEN$time %in% c(1,3),]
+
+
+tb <- olink_limma(seT0,factorCol = "Condition_Factor",contrasts = "BSCO - CSA - IVIG - HC",blocking = NULL)
+
+plot <- tb %>% 
+    select(intersect(colnames(tb), colnames(seT0))) %>%
+    as.data.frame()
+rownames(plot) <-scuttle::uniquifyFeatureNames(tb$OlinkID, tb$Assay)
+
+
+res_anova <- olink_anova(df = SJSTENT0[SJSTENT0$time %in% c(1,3),], variable = "condition")
+res_anova %>% filter(Threshold=="Significant") %>% pull(Assay)
+
+sign <- res_anova %>% head(n=22) %>% pull(Assay)
+
+plot_sig <- plot %>% filter(row.names(plot) %in% sign) %>% as.matrix()
+
+plot_scale <- t(scale(t(plot_sig)))
+
+anno_group <- data.frame(colData(seT0)[colnames(plot), ],check.names = FALSE)$Condition_Factor%>%
+  factor(.,levels = c("CSA", "BSCO", "IVIG", "HC"))
+
+
+column_ha <- HeatmapAnnotation(Condition = anno_group, 
+                               col = list(Condition = c("HC" = "#ffc700","BSCO" = "#01c7e1","IVIG" = "#077183","CSA"="#27ae54")),
+                               border = TRUE,annotation_name_gp= gpar(fontsize = 3),
+                               annotation_legend_param = list(direction = "horizontal",title = "Condition",
+                                                              title_gp = gpar(fontsize = 15),
+                                                              labels_gp = gpar(fontsize = 15)))
+
+
+heat_group <- Heatmap(plot_scale,
+                      name = " ",
+                      top_annotation = column_ha,
+                      row_names_gp = grid::gpar(fontsize = 15),
+                      column_names_gp = grid::gpar(fontsize = 10),
+                      column_title_gp = gpar(fontsize = 15),
+                      row_title = NULL,
+                      column_split = factor(rep(c("BSCO", "CSA", "IVIG","HC"),c(4,4,8,9)),levels = c("BSCO","CSA","IVIG","HC")),
+                      cluster_column_slices = FALSE,
+                      show_column_names = FALSE)
+heat_group
+```
+
+
+
+# All condition at T2 and control
+```{r,fig.height=10,fig.width=8}
+seT0 <- se[,se$Adj_factor %in% c("T2","T3")]
+
+table(seT0$Adj_factor,seT0$Condition_Factor)
+SJSTENT0 <- SJSTEN[SJSTEN$time %in% c(2,3),]
+
+
+tb <- olink_limma(seT0,factorCol = "Condition_Factor",contrasts = "BSCO - CSA - IVIG - HC",blocking = NULL)
+
+plot <- tb %>% 
+    select(intersect(colnames(tb), colnames(seT0))) %>%
+    as.data.frame()
+rownames(plot) <-scuttle::uniquifyFeatureNames(tb$OlinkID, tb$Assay)
+
+
+res_anova <- olink_anova(df = SJSTENT0[SJSTENT0$time %in% c(2,3),], variable = "condition")
+res_anova %>% filter(Threshold=="Significant") %>% pull(Assay)
+
+sign <- res_anova %>% head(n=40) %>% pull(Assay)
+
+plot_sig <- plot %>% filter(row.names(plot) %in% sign) %>% as.matrix()
+
+plot_scale <- t(scale(t(plot_sig)))
+
+anno_group <- data.frame(colData(seT0)[colnames(plot), ],check.names = FALSE)$Condition_Factor
+
+
+column_ha <- HeatmapAnnotation(Condition = anno_group, 
+                               col = list(Condition = c("HC" = "#ffc700","BSCO" = "#01c7e1","IVIG" = "#077183","CSA"="#27ae54")),
+                               border = TRUE,annotation_name_gp= gpar(fontsize = 3),
+                               annotation_legend_param = list(direction = "horizontal",title = "Condition",
+                                                              title_gp = gpar(fontsize = 15),
+                                                              labels_gp = gpar(fontsize = 15)))
+
+
+heat_group <- Heatmap(plot_scale,
+                      name = " ",
+                      top_annotation = column_ha,
+                      row_names_gp = grid::gpar(fontsize = 15),
+                      column_names_gp = grid::gpar(fontsize = 10),
+                      column_title_gp = gpar(fontsize = 15),
+                      row_title = NULL,
+                      column_split = factor(rep(c("BSCO", "CSA", "IVIG","HC"),c(4,4,3,9)),levels = c("BSCO","CSA","IVIG","HC")),
+                      cluster_column_slices = FALSE,
+                      show_column_names = FALSE)
+heat_group
+```
+
+
+# BSCO at T0 T1 T2 and control
+```{r,fig.height=10,fig.width=8}
+seBSCO <- se[,se$Condition_Factor %in% c("BSCO","HC")]
+
+table(seBSCO$Adj_factor,seBSCO$Condition_Factor)
+
+seBSCO$ConditionFactor <- gsub(" ", "", paste(seBSCO$Condition_Factor,seBSCO$Adj_factor))
+seBSCO$ConditionFactor[seBSCO$ConditionFactor %in% c("HCT3")] <- "HC"
+seBSCO$ConditionFactor<-factor(seBSCO$ConditionFactor,levels=c("BSCOT0","BSCOT1","BSCOT2","HC"))
+
+
+tb <- olink_limma(seBSCO,factorCol = "ConditionFactor",contrasts = "BSCOT0 - BSCOT1 - BSCOT2 - HC",blocking = NULL)
+
+plot <- tb %>% 
+    select(intersect(colnames(tb), colnames(seBSCO))) %>%
+    as.data.frame()
+rownames(plot) <-scuttle::uniquifyFeatureNames(tb$OlinkID, tb$Assay)
+
+
+res_anova <- olink_anova(df = SJSTEN[SJSTEN$condition %in% c("BSCO","HC"),], variable = "TimeFactor")
+res_anova %>% filter(Threshold=="Significant") %>% pull(Assay)
+
+sign <- res_anova %>% head(n=40) %>% pull(Assay)
+
+
+plot_sig <- plot %>% filter(row.names(plot) %in% sign) %>% as.matrix()
+
+plot_scale <- t(scale(t(plot_sig)))
+
+anno_group <- data.frame(colData(seBSCO)[colnames(plot), ],check.names = FALSE)$ConditionFactor
+
+
+
+
+
+column_ha <- HeatmapAnnotation(Condition = anno_group, 
+                               col = list(Condition = c("BSCOT0" = "#f22c16","BSCOT1" = "#1a8aeb","BSCOT2" = "#0bbf08","HC"="#f5ea73")),
+                               border = TRUE,annotation_name_gp= gpar(fontsize = 3),
+                               annotation_legend_param = list(direction = "horizontal",title = "Condition",
+                                                              title_gp = gpar(fontsize = 15),
+                                                              labels_gp = gpar(fontsize = 15)))
+
+
+heat_group <- Heatmap(plot_scale,
+                      name = " ",
+                      top_annotation = column_ha,
+                      row_names_gp = grid::gpar(fontsize = 15),
+                      column_names_gp = grid::gpar(fontsize = 10),
+                      column_title_gp = gpar(fontsize = 15),
+                      row_title = NULL,
+                      column_split = factor(rep(c("BSCOT0","BSCOT1","BSCOT2", "HC"),c(4,4,4,9)),levels = c("BSCOT0","BSCOT1","BSCOT2", "HC")),
+                      cluster_column_slices = FALSE,
+                      show_column_names = FALSE)
+heat_group
+```
+
+
+
+# CSA at T0 T1 T2 and control
+```{r,fig.height=10,fig.width=8}
+seCSA <- se[,se$Condition_Factor %in% c("CSA","HC")]
+
+table(seCSA$Adj_factor,seCSA$Condition_Factor)
+
+seCSA$ConditionFactor <- gsub(" ", "", paste(seCSA$Condition_Factor,seCSA$Adj_factor))
+seCSA$ConditionFactor[seCSA$ConditionFactor %in% c("HCT3")] <- "HC"
+seCSA$ConditionFactor<-factor(seCSA$ConditionFactor,levels=c("CSAT0","CSAT1","CSAT2","HC"))
+
+
+tb <- olink_limma(seCSA,factorCol = "ConditionFactor",contrasts = "CSAT0 - CSAT1 - CSAT2 - HC",blocking = NULL)
+
+plot <- tb %>% 
+    select(intersect(colnames(tb), colnames(seCSA))) %>%
+    as.data.frame()
+rownames(plot) <-scuttle::uniquifyFeatureNames(tb$OlinkID, tb$Assay)
+
+
+res_anova <- olink_anova(df = SJSTEN[SJSTEN$condition %in% c("CSA","HC"),], variable = "TimeFactor")
+res_anova %>% filter(Threshold=="Significant") %>% pull(Assay)
+
+sign <- res_anova %>% head(n=40) %>% pull(Assay)
+
+
+plot_sig <- plot %>% filter(row.names(plot) %in% sign) %>% as.matrix()
+
+plot_scale <- t(scale(t(plot_sig)))
+
+anno_group <- data.frame(colData(seCSA)[colnames(plot), ],check.names = FALSE)$ConditionFactor
+
+
+column_ha <- HeatmapAnnotation(Condition = anno_group, 
+                               col = list(Condition = c("CSAT0" = "#f22c16","CSAT1" = "#1a8aeb","CSAT2" = "#0bbf08","HC"="#f5ea73")),
+                               border = TRUE,annotation_name_gp= gpar(fontsize = 3),
+                               annotation_legend_param = list(direction = "horizontal",title = "Condition",
+                                                              title_gp = gpar(fontsize = 15),
+                                                              labels_gp = gpar(fontsize = 15)))
+
+
+heat_group <- Heatmap(plot_scale,
+                      name = " ",
+                      top_annotation = column_ha,
+                      row_names_gp = grid::gpar(fontsize = 15),
+                      column_names_gp = grid::gpar(fontsize = 10),
+                      column_title_gp = gpar(fontsize = 15),
+                      row_title = NULL,
+                      column_split = factor(rep(c("CSAT0","CSAT1","CSAT2", "HC"),c(4,4,4,9)),levels = c("CSAT0","CSAT1","CSAT2", "HC")),
+                      cluster_column_slices = FALSE,
+                      show_column_names = FALSE)
+heat_group
+```
+
+
+# IVIG at T0 T1 T2 and control
+```{r,fig.height=10,fig.width=8}
+seIVIG <- se[,se$Condition_Factor %in% c("IVIG","HC")]
+
+table(seIVIG$Adj_factor,seIVIG$Condition_Factor)
+
+seIVIG$ConditionFactor <- gsub(" ", "", paste(seIVIG$Condition_Factor,seIVIG$Adj_factor))
+seIVIG$ConditionFactor[seIVIG$ConditionFactor %in% c("HCT3")] <- "HC"
+seIVIG$ConditionFactor<-factor(seIVIG$ConditionFactor,levels=c("IVIGT0","IVIGT1","IVIGT2","HC"))
+
+
+tb <- olink_limma(seIVIG,factorCol = "ConditionFactor",contrasts = "IVIGT0 - IVIGT1 - IVIGT2 - HC",blocking = NULL)
+
+plot <- tb %>% 
+    select(intersect(colnames(tb), colnames(seIVIG))) %>%
+    as.data.frame()
+rownames(plot) <-scuttle::uniquifyFeatureNames(tb$OlinkID, tb$Assay)
+
+
+res_anova <- olink_anova(df = SJSTEN[SJSTEN$condition %in% c("IVIG","HC"),], variable = "TimeFactor")
+res_anova %>% filter(Threshold=="Significant") %>% pull(Assay)
+
+sign <- res_anova %>% head(n=40) %>% pull(Assay)
+
+
+plot_sig <- plot %>% filter(row.names(plot) %in% sign) %>% as.matrix()
+
+plot_scale <- t(scale(t(plot_sig)))
+
+anno_group <- data.frame(colData(seIVIG)[colnames(plot), ],check.names = FALSE)$ConditionFactor
+
+
+column_ha <- HeatmapAnnotation(Condition = anno_group, 
+                               col = list(Condition = c("IVIGT0" = "#f22c16","IVIGT1" = "#1a8aeb","IVIGT2" = "#0bbf08","HC"="#f5ea73")),
+                               border = TRUE,annotation_name_gp= gpar(fontsize = 3),
+                               annotation_legend_param = list(direction = "horizontal",title = "Condition",
+                                                              title_gp = gpar(fontsize = 15),
+                                                              labels_gp = gpar(fontsize = 15)))
+
+
+heat_group <- Heatmap(plot_scale,
+                      name = " ",
+                      top_annotation = column_ha,
+                      row_names_gp = grid::gpar(fontsize = 15),
+                      column_names_gp = grid::gpar(fontsize = 10),
+                      column_title_gp = gpar(fontsize = 15),
+                      row_title = NULL,
+                      column_split = factor(rep(c("IVIGT0","IVIGT1","IVIGT2", "HC"),c(8,8,3,9)),levels = c("IVIGT0","IVIGT1","IVIGT2", "HC")),
+                      cluster_column_slices = FALSE,
+                      show_column_names = FALSE)
+heat_group
+```
+
+
+# Pathway!
+```{r}
+ttest_results <- olink_ttest(df = SJSTEN[SJSTEN$time %in% c(0,3),],variable = "conditionGeneral")
+
+SJSTEN$conditionGeneral <- relevel(SJSTEN$conditionGeneral, ref = "Patient")
+
+ttest_results_pomi_uni <- ttest_results %>%
+    filter(Threshold=="Significant") %>%  
+    head(n=50) %>%
+    filter(estimate > 0) %>%
+    pull(UniProt)
+
+
+assay<-ttest_results %>%filter(Threshold=="Significant")%>%head(n=50)%>%pull(Assay)
+foldChange<-ttest_results %>%filter(Threshold=="Significant")%>%head(n=50)%>%pull(estimate)
+pvalue<-ttest_results %>%filter(Threshold=="Significant")%>%head(n=50) %>%pull(Adjusted_pval)
+OlinkSJS <- data.frame(assay, foldChange,pvalue)
+
+#write.xlsx(OlinkSJS, '/Users/milad/Documents/OlinkSJS.xlsx')
+```
+
+
+```{r}
+Enrichment.KEGG(ttest_results_pomi_uni, p_value=0.05)
+```
+
+
+```{r,fig.height=6,fig.width=7}
+ttest_results <- SJSTEN %>%
+  filter(time %in% c(0,3)) %>%
+  olink_ttest(variable = "conditionGeneral") 
+
+ttest_sign <- ttest_results %>% head(n=5) %>%pull(OlinkID)
+
+ttest_sign <- c("OID00947","OID00535","OID00486")
+p.list <- list()
+
+for(i in ttest_sign){
+  
+  plot <- OlinkAnalyze::olink_boxplot(SJSTEN,variable = "ConditionFactor",
+                olinkid_list = i,
+                number_of_proteins_per_plot  = 1)
+
+a<-plot[[1]]$data
+
+maxs <- aggregate(NPX ~ ConditionFactor, data = a, FUN = mean)
+maxs$time<-sapply(strsplit(as.character(maxs$ConditionFactor),"T"), `[`, 2)
+maxs$cond <- sapply(strsplit(as.character(maxs$ConditionFactor)," "), `[`, 1)
+
+maxs$time[maxs$time %in% NA]<-0
+
+maxs$timenumber <- as.numeric(maxs$time)
+maxs$timenumber[maxs$cond %in% ("BSCO")] <- maxs$timenumber[maxs$cond %in% ("BSCO")]-0.05
+maxs$timenumber[maxs$cond %in% ("IVIG")] <- maxs$timenumber[maxs$cond %in% ("IVIG")]+0.05
+#maxs$timenumber[maxs$cond %in% ("Control")] <- maxs$timenumber[maxs$cond %in% ("Control")]<-0
+
+maxs$sd <- 0.1
+
+p.list[[i]] <- ggplot(maxs, aes(x=timenumber, y=NPX, group = cond, color=cond))+ 
+    geom_errorbar(aes(ymin=NPX-sd, ymax=NPX+sd), width=.1, 
+    position=position_dodge(0.05)) +
+    geom_line() + 
+    geom_point()+
+    labs(title=unique(SJSTEN$Assay[SJSTEN$OlinkID %in% i]) ,x="Time factor", y = "NPX")+
+    theme_classic()+ scale_color_manual(values=c('#01c7e1','#fe2504','#00559e','#ffc700'))+ theme(axis.title = element_text(color="black",size = 18),
+                                                                                                  axis.text =  element_text(color="black",size = 14),
+                                                                                                  plot.title = element_text(color="black", size=20, face="bold",hjust = 0.5))
+}
+
+p.list
+```
+
+
+
+# BOX plot SJS SJS/TEN TEN
+```{r,fig.height=8,fig.width=10}
+SJSTEN$status <- "NA"
+
+SJSTEN$status[SJSTEN$SampleID %in% c("B3390700j5","B3390724J5","B320731J5","LYELL 01","LYELL 06","LYELL 09","B09J21","B06J21","B01J21","B3390716J5",
+                                     "B3340738J5","LYELL 10","LYELL 08","B08J21","0B10M2","HG15.737","HG15.865","HG15.529")]<-"SJS"
+
+SJSTEN$status[SJSTEN$SampleID %in% c("B3390725J5","LYELL 07","B07J21","B3390714j5","B3320730J5","LYELL 04","LYELL 03","B04J21","B03J21","HG11.256","HG11.246")]<-"SJS/TEN"
+
+SJSTEN$status[SJSTEN$SampleID %in% c("HG10.50","HG10.54","HG13.451","HG13.469","HG15.153","HG15.322","HG17.1311","HG17.1589","HG16.1032","HG16.959","HG11.236","HG11.249","de1908 0983","HG19.3989")]<-"TEN"
+
+cur_SJS<-SJSTEN[!SJSTEN$status %in% c("NA"),]
+
+
+res_anova <- olink_anova(df = cur_SJS[cur_SJS$time %in% c(0),], variable = "status")
+
+anova_sign<-res_anova %>% head(6) %>% pull(OlinkID)
+
+plot <- OlinkAnalyze::olink_boxplot(cur_SJS,variable = "status",
+                olinkid_list = anova_sign,
+                number_of_proteins_per_plot  = 10)
+plot[[1]]
+```
+
+
+
+# BOX plot
+```{r,fig.height=8,fig.width=10}
+#plot <- OlinkAnalyze::olink_boxplot(SJSTEN[SJSTEN$time %in% c(0,3),],variable = "condition3",
+#                olinkid_list = ttest_sign,
+#                number_of_proteins_per_plot  = 10)
+#plot[[1]]
+```
+
+
+```{r}
+sort(unique(SJSTEN$Assay, fromLast = TRUE))
+```
+
+
+#----------------------------------------------------------- Patient at T0 -----------------------------------------------------------
+
+# IVIG vs BSCO at T0
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("IVIG","BSCO")) %>%
+  filter(time %in% c(0)) %>%
+  mutate(condition = factor(condition, levels = c("IVIG","BSCO"))) %>%
+  olink_ttest(variable = "condition") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+
+# IVIG vs CSA at T0
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("IVIG","CSA")) %>%
+  filter(time %in% c(0)) %>%
+  mutate(condition = factor(condition, levels = c("IVIG","CSA"))) %>%
+  olink_ttest(variable = "condition") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+
+# BSCO vs CSA at T0
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("BSCO","CSA")) %>%
+  filter(time %in% c(0)) %>%
+  mutate(condition = factor(condition, levels = c("BSCO","CSA"))) %>%
+  olink_ttest(variable = "condition") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+
+
+#----------------------------------------------------------- each condition at T0 vs T1 -----------------------------------------------------------
+
+# BSCO at T0 vs T2
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("BSCO")) %>%
+  filter(time %in% c(0,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("2","0"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+```{r}
+donwregulateBSCOT0T1 <- ttest_results %>%
+    head(n=36) %>%
+    filter(estimate < 0) %>%
+    pull(Assay)
+```
+
+```{r}
+upregulateBSCOT0T1 <- ttest_results %>%
+    head(n=36) %>%
+    filter(estimate > 0) %>%
+    pull(Assay)
+```
+
+
+# CSA at T0 vs T1
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("CSA")) %>%
+  filter(time %in% c(0,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("2","0"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+```{r}
+donwregulateCSAT0T1 <- sort(ttest_results %>%
+    head(n=36) %>%
+    filter(estimate < 0) %>%
+    pull(Assay))
+```
+
+```{r}
+upregulateCSAT0T1 <- ttest_results %>%
+    head(n=36) %>%
+    filter(estimate > 0) %>%
+    pull(Assay)
+```
+
+# IVIG at T0 vs T1
+```{r}
+ttest_results <- SJSTEN %>% filter(condition %in% c("IVIG")) %>%
+  filter(time %in% c(0,2)) %>%
+  mutate(TimeFactor = factor(TimeFactor, levels = c("2","0"))) %>%
+  olink_ttest(variable = "TimeFactor") 
+
+ttest_sign <- ttest_results %>% head(n=10) %>%pull(OlinkID)
+olink_volcano_plot(p.val_tbl = ttest_results,olinkid_list = ttest_sign) + scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+```{r}
+donwregulateIVIGT0T1 <-ttest_results %>%
+    head(n=36) %>%
+    filter(estimate < 0) %>%
+    pull(Assay)
+```
+
+```{r}
+upregulateIVIGT0T1 <- ttest_results %>%
+    head(n=36) %>%
+    filter(estimate > 0) %>%
+    pull(Assay)
+```
+
+
+```{r}
+
+intersect(donwregulateBSCOT0T1,donwregulateCSAT0T1)
+intersect(donwregulateBSCOT0T1,donwregulateIVIGT0T1)
+intersect(donwregulateCSAT0T1,donwregulateIVIGT0T1)
+intersect(intersect(donwregulateBSCOT0T1,donwregulateCSAT0T1),donwregulateIVIGT0T1)
+
+
+intersect(upregulateBSCOT0T1,upregulateCSAT0T1)
+intersect(upregulateCSAT0T1,upregulateIVIGT0T1)
+intersect(upregulateIVIGT0T1,upregulateBSCOT0T1)
+intersect(intersect(upregulateCSAT0T1,upregulateBSCOT0T1),upregulateIVIGT0T1)
+
+```
+
+
+
+#----------------------------------------------------------- infection infection infection infection -----------------------------------------------------------
+
+
+```{r}
+SJSTEN$infectionviral[SJSTEN$SampleID %in% c("B3390700j5","LYELL 01","B01J21")]<-"viral"
+SJSTEN$infectioncolitis[SJSTEN$SampleID %in% c("HG13.451","HG13.469")]<-"colitis"
+SJSTEN$infectionoral[SJSTEN$SampleID %in% c("HG11.256","HG11.246")]<-"oral"
+
+SJSTEN$infectionpulmonary <- "NA"
+SJSTEN$infectionpulmonary[SJSTEN$SampleID %in% c("B3390724J5","B3390725J5","LYELL 06","LYELL 07","B07J21","B06J21",
+                                     "B3390714j5","B3390716J5","B3320730J5","LYELL 08","LYELL 04","LYELL 03","B04J21","B03J21","B08J21",
+                                     "HG15.153","HG15.322")]<-"pulmonary"
+
+SJSTEN$infectionHWI <- "NoHWI Infection"
+SJSTEN$infectionHWI[SJSTEN$SampleID %in% c("HG11.236","HG11.249","de1908 0983","HG15.737","HG15.865","HG 15.529")]<-"HWI Infection"
+
+SJSTEN$infectionHWI <- paste(SJSTEN$infectionHWI,gsub(" ", "", paste("T",SJSTEN$TimeFactor)))
+
+```
+
+
+
+
+
+# HWI at T0
+```{r}
+ttest_results <- SJSTEN %>% filter(conditionGeneral %in% c("Patient")) %>%
+  filter(time %in% c(1)) %>%
+  olink_ttest(variable = "infectionHWI") 
+
+table(SJSTEN$infectionHWI)/180
+
+ttest_sign<-ttest_results %>% head(7) %>% pull(OlinkID)
+
+plot <- OlinkAnalyze::olink_boxplot(SJSTEN,variable = "infectionHWI",
+                olinkid_list = ttest_sign,
+                number_of_proteins_per_plot  = 7)
+plot[[1]]
+```
+
+
+```{r}
+
+cur_sjs<-SJSTEN[!SJSTEN$infectionHWI %in% c("No Infection T3","NoHWI Infection T3"),]
+
+
+p.list <- list()
+
+for(i in ttest_sign){
+  
+  plot <- OlinkAnalyze::olink_boxplot(cur_sjs,variable = "infectionHWI",
+                olinkid_list = i,
+                number_of_proteins_per_plot  = 1)
+
+a<-plot[[1]]$data
+
+maxs <- aggregate(NPX ~ infectionHWI, data = a, FUN = mean)
+maxs$time<-sapply(strsplit(as.character(maxs$infectionHWI),"T"), `[`, 2)
+maxs$cond <- sapply(strsplit(as.character(maxs$infectionHWI)," "), `[`, 1)
+
+maxs$sd <- 0.1
+
+p.list[[i]] <- ggplot(maxs, aes(x=time, y=NPX, group = cond, color=cond))+ 
+    geom_errorbar(aes(ymin=NPX-sd, ymax=NPX+sd), width=.1, 
+    position=position_dodge(0.05)) +
+    geom_line() + 
+    geom_point()+
+    labs(title=unique(SJSTEN$Assay[SJSTEN$OlinkID %in% i]) ,x="Time factor", y = "NPX  value")+
+    theme_classic()+ scale_color_manual(values=c('#01c7e1','#fe2504','#00559e','#ffc700'))+ theme(axis.title = element_text(color="black",size = 22),
+                                                                                                  axis.text =  element_text(color="black",size = 14),
+                                                                                                  plot.title = element_text(color="black", size=20,hjust = 0.5))
+}
+
+p.list
+```
+
+
+
+

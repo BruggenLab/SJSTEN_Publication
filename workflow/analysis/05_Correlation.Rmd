@@ -1,0 +1,52 @@
+---
+title: "05_Correlation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# library
+```{r,echo=FALSE}
+library(OlinkAnalyze)
+library(OlinkR)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(ggpubr)
+library(gplots)
+library(readxl)
+```
+
+
+# load data
+```{r,fig.height=4,fig.width=5}
+Nanostring <- read_xlsx(path = "/Users/milad/Documents/SJSTEN/SJS_TEN_Nanostring/Nanostring.xlsx")
+colnames(Nanostring) <- c("Assay","MeanNE")
+
+
+SJSTEN <- readRDS(file =  "/Users/milad/Documents/SJSTEN/SJSTEN_V1.rds")
+SJSTEN <- SJSTEN[SJSTEN$time %in% c(0) & !SJSTEN$condition %in% c("Control"),]
+SJSTENaggregate <- aggregate(SJSTEN$NPX, list(SJSTEN$Assay), mean)
+colnames(SJSTENaggregate) <- c("Assay","NPX")
+
+
+
+common<-intersect(Nanostring$Assay,SJSTENaggregate$Assay)
+
+Nanostring<- Nanostring[Nanostring$Assay %in% common,]
+
+SJSTENaggregate<- SJSTENaggregate[SJSTENaggregate$Assay %in% common,]
+
+
+mergedf<- merge(Nanostring, SJSTENaggregate, by=c("Assay")) 
+
+
+ggscatter(mergedf, x = "NPX", y = "MeanNE",label = "Assay",shape =20 ,
+          label.select = c("CXCL9","CXCL10","CXCL11","IL13","IL7","CD8A","ITGA6","TANK","TNF","TREM1","CCL23","CCL25","KLRD1","LAG3","LAMP3","TNFRSF9"),
+          add = "reg.line", conf.int = FALSE, 
+          cor.coef = TRUE,cor.coef.size = 5, cor.method = "pearson",
+          xlab = "OLINK relative expression", ylab = "Nanostring relative expression")+ theme_classic()+ theme(axis.title = element_text(size = 17))     
+
+```

@@ -1,0 +1,73 @@
+---
+title: "01_read_data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Import libraries
+```{r,message=FALSE}
+library(OlinkAnalyze)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(openxlsx)
+```
+
+# read data
+```{r}
+Inflammation <- read_NPX(filename = "/Users/milad/Documents/SJSTEN/Inflammation_Brüggen_Drug Allergy_NPX.xlsx")
+
+Immuneresponse <- read_NPX(filename = "/Users/milad/Documents/SJSTEN/Immune Response_Brüggen_Drug Allergy_NPX.xlsx")
+```
+
+
+# combine two panel
+```{r}
+SJSTEN <- bind_rows(Immuneresponse, Inflammation) %>% group_by(Assay, SampleID) %>% filter(row_number()==1)
+
+#SJSTEN <- rbind(Immuneresponse, Inflammation)
+table(SJSTEN$SampleID)
+```
+
+# assign time to samples
+```{r}
+SJSTEN$time<-0
+SJSTEN$time[SJSTEN$SampleID %in% c("B3390700j5","B3390724J5","B3390725J5","B320731J5","B3390714j5","B3390716J5","B3320730J5","B3340738J5","HG10.50","HG13.451","HG15.153","HG15.737","HG17.1311","HG16.959","HG11.236","HG11.256","de1908 0990")]<-0
+SJSTEN$time[SJSTEN$SampleID %in% c("LYELL 01","LYELL 06","LYELL 07","LYELL 09","LYELL 10","LYELL 08","LYELL 04","LYELL 03","HG10.54","HG13.469","HG15.322","HG15.865","HG17.1589","HG16.1032","HG11.249","HG11.246")]<-1
+SJSTEN$time[SJSTEN$SampleID %in% c("B07J21","B09J21","B06J21","B01J21","B04J21","B03J21","B08J21","0B10M2","de1908 0983","HG19.3989","HG15.529")]<-2
+
+
+order_t <- c("B3390700j5","B3390724J5","B3390725J5","B320731J5","LYELL 01","LYELL 06","LYELL 07","LYELL 09","B07J21","B09J21","B06J21","B01J21","B3390714j5","B3390716J5","B3320730J5","B3340738J5",
+"LYELL 10","LYELL 08","LYELL 04","LYELL 03","B04J21","B03J21","B08J21","0B10M2","HG10.50","HG13.451","HG15.153","HG15.737","HG17.1311","HG16.959","HG11.236","HG11.256","HG10.54","HG13.469",
+"HG15.322","HG15.865","HG17.1589","HG16.1032","HG11.249","HG11.246","de1908 0990","de1908 0983","HG19.3989","HG15.529","de1908 0817","de1908 0840","de1908 0984","de1908 0985","de1908 0986",
+"de1908 0988","de1908 0991","de1908 0992")
+
+table(factor(SJSTEN$SampleID, levels = order_t),SJSTEN$time)
+```
+
+
+
+# assign treatment to samples
+```{r}
+SJSTEN$condition<-"Control"
+SJSTEN$condition[SJSTEN$SampleID %in% c("B3390700j5","B3390724J5","B3390725J5","B320731J5","LYELL 01","LYELL 06","LYELL 07","LYELL 09" ,"B07J21","B09J21","B06J21","B01J21")]<-"BSC"
+SJSTEN$condition[SJSTEN$SampleID %in% c("B3390714j5","B3390716J5","B3320730J5","B3340738J5","LYELL 10","LYELL 08","LYELL 04","LYELL 03","B04J21","B03J21","B08J21","0B10M2")]<-"CSA"
+SJSTEN$condition[SJSTEN$SampleID %in% c("HG10.50","HG13.451","HG15.153","HG15.737","HG17.1311","HG16.959","HG11.236","HG11.256","HG10.54","HG13.469","HG15.322","HG15.865","HG17.1589",
+                                   "HG16.1032","HG11.249","HG11.246","de1908 0983","HG19.3989","HG15.529")]<-"IVIG"
+
+
+table(factor(SJSTEN$SampleID, levels = order_t),factor(SJSTEN$condition, levels = c("BSC","CSA","IVIG","Control")))
+```
+
+
+
+
+#save sce
+```{r}
+saveRDS(SJSTEN,file = "/Users/milad/Documents/SJSTEN//SJSTEN_V1.rds")
+write.xlsx(SJSTEN, '/Users/milad/Documents/SJSTEN//SJSTEN_V1.xlsx')
+```

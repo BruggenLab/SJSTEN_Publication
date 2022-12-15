@@ -1,0 +1,108 @@
+---
+title: "02_quality_control"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# library
+```{r}
+library(OlinkAnalyze)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(writexl)
+```
+
+
+# load data
+```{r}
+SJSTEN <- readRDS(file =  "/Users/milad/Documents/SJSTEN//SJSTEN_V1.rds")
+
+table(SJSTEN$SampleID)
+```
+
+```{r}
+table(SJSTEN$PlateID)
+```
+
+
+# QC plot functions
+
+# visualize the NPX distribution per sample per panel, example for one panel
+
+```{r,fig.width=15}
+olink_dist_plot(SJSTEN, color_g = "QC_Warning")
+```
+
+
+
+# visualize potential outliers by IQR vs. sample median per panel
+
+
+```{r}
+olink_qc_plot(SJSTEN ) +
+  scale_color_manual(values = c('turquoise3', 'red'))
+```
+
+################################################################################
+
+```{r}
+table(SJSTEN$PlateID)
+df1<- SJSTEN[SJSTEN$PlateID %in% c("20220629_Immune Response_Brueggen"),]
+olink_dist_plot(df1, color_g = "QC_Warning")
+```
+
+
+```{r}
+df2<- SJSTEN[SJSTEN$PlateID %in% c("20220629_Inflammation_Brueggen"),]
+olink_dist_plot(df2, color_g = "QC_Warning")
+```
+#Intensity normalization
+```{r}
+#overlap_samples <- intersect(df1$SampleID, df2$SampleID) %>% data.frame() 
+
+#df1[df1$SampleID %in% overlap_samples,]
+
+# Perform Bridging normalization
+#olink_normalization(df1 = df1, 
+#                    df2 = df2, 
+#                    overlapping_samples_df1 = overlap_samples,
+#                    df1_project_nr = 'df1',
+#                    df2_project_nr = 'df2',
+#                    reference_project = 'df1')
+```
+
+
+# Bridging normalization:
+```{r}
+#olink_bridgeselector(SJSTEN[SJSTEN$Panel %in% c("Olink Immune Response") & SJSTEN$PlateID %in%c("20201210_Immune Response_CK-Care_St. Gallen_plate 3"),], sampleMissingFreq = 0.1, 8)
+
+#bridge_samples <- intersect(x = Inflammation$SampleID,y = Immuneresponse$SampleID)
+#bridge_samples <- c("B3320730J5","B3390724J5")
+
+# bridge normalize
+#bridge_normalized_data <- olink_normalization(df1 = Inflammation,
+#					    df2 = Immuneresponse,
+#					    overlapping_samples_df1 = bridge_samples,
+#					    df1_project_nr = "Inflammation",
+#					    df2_project_nr = "Immuneresponse",
+#					    reference_project = "Immuneresponse")
+#olink_dist_plot(bridge_normalized_data, color_g = "QC_Warning")
+```
+# Reference median normalization: ???
+```{r}
+#ref_median_df <- Immuneresponse %>%
+#    dplyr::select(OlinkID) %>%
+#    dplyr::distinct() %>%
+#    dplyr::mutate(Reference_NPX = 1)
+# Normalize
+#nd<-olink_normalization(df1 = Immuneresponse,
+#                    overlapping_samples_df1 = bridge_samples,
+#                    reference_medians = ref_median_df)
+#olink_dist_plot(nd, color_g = "QC_Warning")
+```
+
+
